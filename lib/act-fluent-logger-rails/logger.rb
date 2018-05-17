@@ -107,6 +107,9 @@ module ActFluentLoggerRails
         case message
         when ::String
           message
+        when ::Hash
+          @map.merge!(message)
+          ""
         when ::Exception
           "#{ message.message } (#{ message.class })\n" <<
             (message.backtrace || []).join("\n")
