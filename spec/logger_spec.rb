@@ -22,7 +22,7 @@ describe InfluxdbLogger::Logger do
       end
     end
     @my_logger = MyLogger.new
-    allow(Fluent::Logger::FluentLogger).to receive(:new).and_return(@my_logger)
+    allow(InfluxdbLogger::Logger::FluentLogger).to receive(:new).and_return(@my_logger)
 
     @config_file = Tempfile.new('fluent-logger-config')
     @config_file.close(false)
