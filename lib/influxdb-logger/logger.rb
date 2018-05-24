@@ -1,9 +1,15 @@
-require 'fluent-logger'
 require 'active_support/core_ext'
 require 'uri'
 require 'cgi'
 
-module ActFluentLoggerRails
+
+class Time
+  def to_ms
+    (self.to_f * 1000.0).to_i
+  end
+end
+
+module InfluxdbLogger
 
   module Logger
 
@@ -11,19 +17,20 @@ module ActFluentLoggerRails
     SEV_LABEL = %w(DEBUG INFO WARN ERROR FATAL ANY)
 
     def self.new(config_file: Rails.root.join("config", "fluent-logger.yml"),
-                 log_tags: {},
-                 settings: {},
-                 flush_immediately: false)
+      log_tags: {},
+      settings: {},
+      batch_size: 1000,
+      interval: 1000)
       Rails.application.config.log_tags = log_tags.values
       if Rails.application.config.respond_to?(:action_cable)
         Rails.application.config.action_cable.log_tags = log_tags.values.map do |x|
           case
-          when x.respond_to?(:call)
-            x
-          when x.is_a?(Symbol)
-            -> (request) { request.send(x) }
-          else
-            -> (request) { x }
+            when x.respond_to?(:call)
+              x
+            when x.is_a?(Symbol)
+              -> (request) { request.send(x) }
+            else
+              -> (request) { x }
           end
         end
       end
@@ -43,10 +50,11 @@ module ActFluentLoggerRails
         }
       end
 
-      settings[:flush_immediately] ||= flush_immediately
+      settings[:batch_size] ||= batch_size
+      settings[:interval] ||= interval
 
       level = SEV_LABEL.index(Rails.application.config.log_level.to_s.upcase)
-      logger = ActFluentLoggerRails::FluentLogger.new(settings, level, log_tags)
+      logger = InfluxdbLogger::FluentLogger.new(settings, level, log_tags)
       logger = ActiveSupport::TaggedLogging.new(logger)
       logger.extend self
     end
@@ -76,20 +84,35 @@ module ActFluentLoggerRails
   class FluentLogger < ActiveSupport::Logger
     def initialize(options, level, log_tags)
       self.level = level
-      port    = options[:port]
-      host    = options[:host]
-      nanosecond_precision = options[:nanosecond_precision]
       @messages_type = (options[:messages_type] || :array).to_sym
       @tag = options[:tag]
       @severity_key = (options[:severity_key] || :severity).to_sym
-      @flush_immediately = options[:flush_immediately]
-      logger_opts = {host: host, port: port, nanosecond_precision: nanosecond_precision}
-      @fluent_logger = ::Fluent::Logger::FluentLogger.new(nil, logger_opts)
+      @batch_size = options[:batch_size]
+      @interval = options[:interval]
+      @series = options[:series]
+      @last_flush_time = Time.now.to_ms
+
+      @influxdb_logger = InfluxDB::Client.new(
+        host: options[:host],
+        database: options[:database],
+        retry: options[:retry],
+        username: options[:username],
+        password: options[:password],
+        time_precision: options[:time_precision]
+      )
+
       @severity = 0
       @messages = []
       @log_tags = log_tags
-      @map = {}
       after_initialize if respond_to? :after_initialize
+    end
+
+    def [](key)
+      @map[key]
+    end
+
+    def []=(key, value)
+      @map[key] = value
     end
 
     def add(severity, message = nil, progname = nil, &block)
@@ -103,60 +126,68 @@ module ActFluentLoggerRails
     def add_message(severity, message)
       @severity = severity if @severity < severity
 
-      message =
+      values =
         case message
-        when ::String
-          message
-        when ::Hash
-          @map.merge!(message)
-          ""
-        when ::Exception
-          "#{ message.message } (#{ message.class })\n" <<
-            (message.backtrace || []).join("\n")
-        else
-          message.inspect
+          when ::String
+            {
+              message_type: 'String',
+              message: message
+            }
+          when ::Hash
+            message.merge({
+              message_type: 'Hash'
+            })
+          when ::Exception
+            {
+              message_type: 'Exception',
+              message: message.message,
+              class: message.class,
+              backtrace: message.backtrace
+            }
+          else
+            {
+              message_type: 'Others',
+              message: message.inspect
+            }
         end
 
-      if message.encoding == Encoding::UTF_8
-        @messages << message
-      else
-        @messages << message.dup.force_encoding(Encoding::UTF_8)
-      end
+      message = {
+        series: @series,
+        timestamp: Time.now.to_ms,
+        values: values.merge({
+          severity: format_severity(@severity)
+        }).transform_values {|value|
+          case value
+            when ::Numeric, ::String
+              value
+            when ::Hash
+              value.to_json
+            when ::Symbol
+              value.to_s
+            else
+              value.inspect
+          end
+        }
+      }
 
-      flush if @flush_immediately
-    end
-
-    def [](key)
-      @map[key]
-    end
-
-    def []=(key, value)
-      @map[key] = value
+      @messages << message
+      flush if @messages.size >= @batch_size || (Time.now.to_ms - @last_flush_time) > @interval
     end
 
     def flush
       return if @messages.empty?
-      messages = if @messages_type == :string
-                   @messages.join("\n")
-                 else
-                   @messages
-                 end
-      @map[:messages] = messages
-      @map[@severity_key] = format_severity(@severity)
-      if @tags
-        @log_tags.keys.zip(@tags).each do |k, v|
-          @map[k] = v
-        end
-      end
-      @fluent_logger.post(@tag, @map)
+      # test switch
+      # open("#{Rails.root}/log/my.log", 'w') { |f|
+      #   f.puts @messages
+      # }
+      @influxdb_logger.write_points(@messages)
       @severity = 0
       @messages.clear
-      @tags = nil
-      @map.clear
+      @last_flush_time = Time.now.to_ms
     end
 
     def close
-      @fluent_logger.close
+      # @fluent_logger.close
     end
 
     def level
@@ -168,7 +199,8 @@ module ActFluentLoggerRails
     end
 
     def format_severity(severity)
-      ActFluentLoggerRails::Logger::SEV_LABEL[severity] || 'ANY'
+      InfluxdbLogger::Logger::SEV_LABEL[severity] || 'ANY'
     end
   end
 end
+

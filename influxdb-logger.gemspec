@@ -1,16 +1,16 @@
 # -*- encoding: utf-8 -*-
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'act-fluent-logger-rails/version'
+require 'influxdb-logger/version'
 
 Gem::Specification.new do |gem|
-  gem.name          = "act-fluent-logger-rails"
-  gem.version       = ActFluentLoggerRails::VERSION
-  gem.authors       = ["TAHARA Yoshinori"]
-  gem.email         = ["read.eval.print@gmail.com"]
-  gem.description   = %q{Fluent logger}
-  gem.summary       = %q{Fluent logger}
-  gem.homepage      = "https://github.com/actindi/act-fluent-logger-rails"
+  gem.name          = "influxdb-logger"
+  gem.version       = InfluxdbLogger::VERSION
+  gem.authors       = ["Rallets"]
+  gem.email         = ["info@rallets.com"]
+  gem.description   = %q{Influxdb logger}
+  gem.summary       = %q{Influxdb logger}
+  gem.homepage      = "https://github.com/rallets-network/influxdb-logger"
   gem.license       = "MIT"
 
   gem.files         = `git ls-files`.split($/)
@@ -22,4 +22,5 @@ Gem::Specification.new do |gem|
   gem.add_runtime_dependency "fluent-logger"
   gem.add_runtime_dependency "railties", ">= 4", "< 5.3"
   gem.add_runtime_dependency "activesupport", ">= 4", "< 5.3"
+  gem.add_runtime_dependency "influxdb", "~> 0.5.3"
 end

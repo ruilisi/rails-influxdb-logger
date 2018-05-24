@@ -5,5 +5,6 @@ source "https://rubygems.org"
 gem "appraisal"
 gem "railties", "4.1.16"
 gem "activesupport", "4.1.16"
+gem 'influxdb', "0.5.3"
 
 gemspec path: "../"
