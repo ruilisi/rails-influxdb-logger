@@ -25,7 +25,7 @@
 
 ## 0.1.9 / Dec 16 2015
 
- * Added settings: parameter to ActFluentLoggerRails::Logger.new.
+ * Added settings: parameter to InfluxdbLogger::Logger.new.
 
 ## 0.1.8 / Nov 14 2015
 

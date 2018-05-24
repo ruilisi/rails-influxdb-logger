@@ -10,7 +10,7 @@ Fluent logger.
 
 Add this line to your application's Gemfile:
 
-    gem 'act-fluent-logger-rails'
+    gem 'influxdb-logger
 
 And then execute:
 
@@ -18,14 +18,14 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install act-fluent-logger-rails
+    $ gem install influxdb-logger
 
 ## Usage
 
 in config/environments/production.rb
 
     config.log_level = :info
-    config.logger = ActFluentLoggerRails::Logger.
+    config.logger = InfluxdbLogger::Logger.
       new(log_tags: {
             ip: :ip,
             ua: :user_agent,
@@ -63,9 +63,9 @@ Don't use config.log_tags.
 
     http://fluentd.example.com:42442/foo?messages_type=string&severity_key=level
 
-#### pass a settings object to ActFluentLoggerRails::Logger.new
+#### pass a settings object to InfluxdbLogger::Logger.new
 
-    config.logger = ActFluentLoggerRails::Logger.
+    config.logger = InfluxdbLogger::Logger.
       new(settings: {
             host: '127.0.0.1',
             port: 24224,
@@ -102,7 +102,7 @@ lifecycle. If you wish to use it instead as a separate logger and log to it
 manually then it is necessary to initialize with the `flush_immediately` flag.
 
 ```ruby
-ActFluentLoggerRails::Logger.new(flush_immediately: true)
+InfluxdbLogger::Logger.new(flush_immediately: true)
 ```
 
 
