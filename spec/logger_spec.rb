@@ -1,6 +1,11 @@
 require 'spec_helper'
 require 'tempfile'
 
+class Time
+  def to_ms # for convenience of comparing  timestamps
+    (self.to_f * 1000.0).to_i
+  end
+end
 
 describe InfluxdbLogger::Logger do
   before do
@@ -12,39 +17,52 @@ describe InfluxdbLogger::Logger do
     class MyLogger
       attr_accessor :log
       def post(tag, map)
-        @log ||= []
-        @log << [tag, map.merge(messages: map[:messages].dup)]
       end
+
       def clear
         @log.clear
       end
+
       def close
+      end
+
+      def write_point(point)
+        @log ||= []
+        @log << point
+      end
+
+      def write_points(points)
+        @log ||= []
+        @log.concat(points)
       end
     end
     @my_logger = MyLogger.new
-    allow(InfluxdbLogger::Logger::FluentLogger).to receive(:new).and_return(@my_logger)
-
-    @config_file = Tempfile.new('fluent-logger-config')
-    @config_file.close(false)
-    File.open(@config_file.path, 'w') {|f|
-      f.puts <<EOF
-test:
-  fluent_host: '127.0.0.1'
-  fluent_port: 24224
-  tag:         'foo'
-EOF
-    }
+    allow(InfluxDB::Client).to receive(:new).and_return(@my_logger)
   end
 
+  let(:series) { 'Request' }
+
   let(:log_tags) {
-    { uuid: :uuid,
+    {
+      uuid: :uuid,
       foo: ->(request) { 'foo_value' }
     }
   }
 
+  let(:settings) {
+    {
+      host: 'influxdb',
+      database: 'paiyou',
+      series: series,
+      retry: 3,
+      username: 'user',
+      password: 'password',
+      time_precision: 'ms'
+    }
+  }
+
   let(:logger) {
-    InfluxdbLogger::Logger.new(config_file: File.new(@config_file.path),
-                                     log_tags: log_tags)
+    InfluxdbLogger::Logger.new(log_tags: log_tags, settings: settings)
   }
 
   let(:request) {
@@ -68,21 +86,51 @@ EOF
         end
         logger[:abc] = 'xyz'
         logger.tagged(tags) { logger.info('hello') }
-        expect(@my_logger.log).to eq([['foo', {
-                                         abc: 'xyz',
-                                         messages: ['hello'],
-                                         severity: 'INFO',
-                                         uuid: 'uuid_value',
-                                         foo: 'foo_value'
-                                       } ]])
+        expect(@my_logger.log).to eq(
+                                    [{
+                                      series: series,
+                                      timestamp: Time.now.to_ms,
+                                      tags: {
+                                        abc: 'xyz',
+                                        uuid: 'uuid_value',
+                                        foo: 'foo_value'
+                                      },
+                                      values: {
+                                        message_type: 'String',
+                                        message: 'hello',
+                                        severity: 'INFO'
+                                      }
+                                    }])
         @my_logger.clear
         logger.tagged(tags) { logger.info('world'); logger.info('bye') }
-        expect(@my_logger.log).to eq([['foo', {
-                                         messages: ['world', 'bye'],
-                                         severity: 'INFO',
-                                         uuid: 'uuid_value',
-                                         foo: 'foo_value'
-                                       } ]])
+        expect(@my_logger.log).to eq(
+          [{
+            series: series,
+            timestamp: Time.now.to_ms,
+            tags: {
+              abc: 'xyz',
+              uuid: 'uuid_value',
+              foo: 'foo_value'
+            },
+            values: {
+              message_type: 'String',
+              message: 'world',
+              severity: 'INFO'
+            }
+          }, {
+            series: series,
+            timestamp: Time.now.to_ms,
+            tags: {
+              abc: 'xyz',
+              uuid: 'uuid_value',
+              foo: 'foo_value'
+            },
+            values: {
+              message_type: 'String',
+              message: 'bye',
+              severity: 'INFO'
+            }
+          }])
       end
     end
 
@@ -101,7 +149,8 @@ EOF
           logger.info(ascii)
           logger.info('咲く')
         }
-        expect(@my_logger.log[0][1][:messages]).to eq("花\n咲く")
+        expect(@my_logger.log[0][:values][:message]).to eq("花")
+        expect(@my_logger.log[1][:values][:message]).to eq("咲く")
         expect(ascii.encoding).to eq(Encoding::ASCII_8BIT)
       end
     end
@@ -114,8 +163,7 @@ EOF
           logger.tagged([request]) {
             logger.error(e)
           }
-          expect(@my_logger.log[0][1][:messages][0]).
-            to match(%r|divided by 0 \(ZeroDivisionError\).*spec/logger_spec\.rb:|m)
+          expect(@my_logger.log[0][:values][:message]).to eq("divided by 0")
         end
       end
     end
@@ -126,37 +174,7 @@ EOF
         logger.tagged([request]) {
           logger.info(x)
         }
-        expect(@my_logger.log[0][1][:messages][0]).to eq(x.inspect)
-      end
-    end
-
-    describe 'severity_key' do
-      describe 'not specified' do
-        it 'severity' do
-          logger.tagged([request]) { logger.info('hello') }
-          expect(@my_logger.log[0][1][:severity]).to eq('INFO')
-        end
-      end
-
-      describe 'severity_key: level' do
-        before do
-          @config_file = Tempfile.new('fluent-logger-config')
-          @config_file.close(false)
-          File.open(@config_file.path, 'w') {|f|
-            f.puts <<EOF
-test:
-  fluent_host: '127.0.0.1'
-  fluent_port: 24224
-  tag:         'foo'
-  severity_key: 'level'  # default severity
-EOF
-          }
-        end
-
-        it 'level' do
-          logger.tagged([request]) { logger.info('hello') }
-          expect(@my_logger.log[0][1][:level]).to eq('INFO')
-        end
+        expect(@my_logger.log[0][:values][:message]).to eq(x.inspect)
       end
     end
   end
@@ -174,23 +192,11 @@ EOF
     end
   end
 
-  describe 'flush_immediately' do
-    describe 'flush_immediately: true' do
-      it 'flushed' do
-        logger = InfluxdbLogger::Logger.new(config_file: File.new(@config_file.path),
-                                                  flush_immediately: true)
-        logger.info('Immediately!')
-        expect(@my_logger.log[0][1][:messages][0]).to eq('Immediately!')
-      end
-    end
-
-    describe 'flush_immediately: false' do
-      it 'flushed' do
-        logger = InfluxdbLogger::Logger.new(config_file: File.new(@config_file.path),
-                                                  flush_immediately: false)
-        logger.info('Immediately!')
-        expect(@my_logger.log).to eq(nil)
-      end
+  describe 'batch size' do
+    it 'works well with batch size' do
+      logger = InfluxdbLogger::Logger.new(settings: settings, batch_size: 2))
+      # logger.info('Immediately!')
+      # expect(@my_logger.log).to eq(nil)
     end
   end
 end
