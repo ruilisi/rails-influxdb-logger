@@ -32,16 +32,16 @@ module InfluxdbLogger
         end
       end
       if (0 == settings.length)
-        fluent_config = if ENV["FLUENTD_URL"]
-                          self.parse_url(ENV["FLUENTD_URL"])
+        influxdb_config = if ENV["INFLUXDB_URL"]
+                          self.parse_url(ENV["INFLUXDB_URL"])
                         end
         settings = {
-          tag:  fluent_config['tag'],
-          host: fluent_config['fluent_host'],
-          port: fluent_config['fluent_port'],
-          nanosecond_precision: fluent_config['nanosecond_precision'],
-          messages_type: fluent_config['messages_type'],
-          severity_key: fluent_config['severity_key'],
+          tag:  influxdb_config['tag'],
+          host: influxdb_config['influxdb_host'],
+          port: influxdb_config['influxdb_port'],
+          nanosecond_precision: influxdb_config['nanosecond_precision'],
+          messages_type: influxdb_config['messages_type'],
+          severity_key: influxdb_config['severity_key'],
         }
       end
 
@@ -54,13 +54,13 @@ module InfluxdbLogger
       logger.extend self
     end
 
-    def self.parse_url(fluentd_url)
-      uri = URI.parse fluentd_url
+    def self.parse_url(influxdb_url)
+      uri = URI.parse influxdb_url
       params = CGI.parse uri.query
 
       {
-        fluent_host: uri.host,
-        fluent_port: uri.port,
+        host: uri.host,
+        port: uri.port,
         tag: uri.path[1..-1],
         nanosecond_precision: params['nanosecond_precision'].try(:first),
         messages_type: params['messages_type'].try(:first),
@@ -192,10 +192,6 @@ module InfluxdbLogger
 
     def flush
       return if @messages.empty?
-      # test switch
-      # open("#{Rails.root}/log/my.log", 'w') { |f|
-      #   f.puts @messages
-      # }
       @influxdb_logger.write_points(@messages)
       @severity = 0
       @messages.clear
@@ -203,7 +199,6 @@ module InfluxdbLogger
     end
 
     def close
-      # @fluent_logger.close
     end
 
     def level
