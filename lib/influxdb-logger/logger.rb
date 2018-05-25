@@ -87,6 +87,7 @@ module InfluxdbLogger
       @series = options[:series]
       @global_tags = {}
       @last_flush_time = Time.now.to_ms
+      @value_filter = options[:value_filter] || {}
 
       @influxdb_logger = InfluxDB::Client.new(
         host: options[:host],
@@ -138,6 +139,8 @@ module InfluxdbLogger
               message: utf8_encoded(message)
             }
           when ::Hash
+            message.slice!(*@value_filter[:only]) if @value_filter[:only].present?
+            message.except!(*@value_filter[:except]) if @value_filter[:except].present?
             message.merge({
               message_type: 'Hash'
             })
