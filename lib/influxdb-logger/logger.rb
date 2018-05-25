@@ -49,7 +49,7 @@ module InfluxdbLogger
       settings[:interval] ||= interval
 
       level = SEV_LABEL.index(Rails.application.config.log_level.to_s.upcase)
-      logger = InfluxdbLogger::FluentLogger.new(settings, level, log_tags)
+      logger = InfluxdbLogger::InnerLogger.new(settings, level, log_tags)
       logger = ActiveSupport::TaggedLogging.new(logger)
       logger.extend self
     end
@@ -76,7 +76,7 @@ module InfluxdbLogger
     end
   end
 
-  class FluentLogger < ActiveSupport::Logger
+  class InnerLogger < ActiveSupport::Logger
     def initialize(options, level, log_tags)
       self.level = level
       @messages_type = (options[:messages_type] || :array).to_sym
