@@ -1,3 +1,4 @@
+require 'influxdb'
 require 'active_support/core_ext'
 require 'uri'
 require 'cgi'
@@ -16,11 +17,7 @@ module InfluxdbLogger
     # Severity label for logging. (max 5 char)
     SEV_LABEL = %w(DEBUG INFO WARN ERROR FATAL ANY)
 
-    def self.new(config_file: Rails.root.join("config", "fluent-logger.yml"),
-      log_tags: {},
-      settings: {},
-      batch_size: 1000,
-      interval: 1000)
+    def self.new(log_tags: {}, settings: {}, batch_size: 1000, interval: 1000)
       Rails.application.config.log_tags = log_tags.values
       if Rails.application.config.respond_to?(:action_cable)
         Rails.application.config.action_cable.log_tags = log_tags.values.map do |x|
@@ -37,8 +34,6 @@ module InfluxdbLogger
       if (0 == settings.length)
         fluent_config = if ENV["FLUENTD_URL"]
                           self.parse_url(ENV["FLUENTD_URL"])
-                        else
-                          YAML.load(ERB.new(config_file.read).result)[Rails.env]
                         end
         settings = {
           tag:  fluent_config['tag'],
@@ -90,6 +85,7 @@ module InfluxdbLogger
       @batch_size = options[:batch_size]
       @interval = options[:interval]
       @series = options[:series]
+      @global_tags = {}
       @last_flush_time = Time.now.to_ms
 
       @influxdb_logger = InfluxDB::Client.new(
@@ -108,11 +104,11 @@ module InfluxdbLogger
     end
 
     def [](key)
-      @map[key]
+      @global_tags[key]
     end
 
     def []=(key, value)
-      @map[key] = value
+      @global_tags[key] = value
     end
 
     def add(severity, message = nil, progname = nil, &block)
@@ -123,6 +119,14 @@ module InfluxdbLogger
       true
     end
 
+    def utf8_encoded(message)
+      if message.encoding == Encoding::UTF_8
+        message
+      else
+        message.dup.force_encoding(Encoding::UTF_8)
+      end
+    end
+
     def add_message(severity, message)
       @severity = severity if @severity < severity
 
@@ -131,7 +135,7 @@ module InfluxdbLogger
           when ::String
             {
               message_type: 'String',
-              message: message
+              message: utf8_encoded(message)
             }
           when ::Hash
             message.merge({
@@ -151,9 +155,18 @@ module InfluxdbLogger
             }
         end
 
+      tags = @global_tags.clone
+
+      if @tags
+        @log_tags.keys.zip(@tags).each do |k, v|
+          tags[k] = v
+        end
+      end
+
       message = {
         series: @series,
         timestamp: Time.now.to_ms,
+        tags: tags,
         values: values.merge({
           severity: format_severity(@severity)
         }).transform_values {|value|
