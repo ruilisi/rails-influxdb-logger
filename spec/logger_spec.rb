@@ -194,7 +194,7 @@ describe InfluxdbLogger::Logger do
 
   describe 'batch size' do
     it 'works well with batch size' do
-      logger = InfluxdbLogger::Logger.new(settings: settings, batch_size: 2))
+      # logger = InfluxdbLogger::Logger.new(settings: settings, batch_size: 2))
       # logger.info('Immediately!')
       # expect(@my_logger.log).to eq(nil)
     end
