@@ -196,6 +196,7 @@ module InfluxdbLogger
       @severity = 0
       @messages.clear
       @last_flush_time = Time.now.to_ms
+      @tags = nil
     end
 
     def close
