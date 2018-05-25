@@ -1,6 +1,6 @@
-# Act::Fluent::Logger::Rails
+# influxdb-logger (Rails)
 
-Fluent logger.
+Log to Influxdb in Rails
 
 ## Supported versions
 
@@ -10,7 +10,7 @@ Fluent logger.
 
 Add this line to your application's Gemfile:
 
-    gem 'influxdb-logger
+    gem 'influxdb-logger', '5.1.4'
 
 And then execute:
 
@@ -24,86 +24,59 @@ Or install it yourself as:
 
 in config/environments/production.rb
 
-    config.log_level = :info
-    config.logger = InfluxdbLogger::Logger.
-      new(log_tags: {
-            ip: :ip,
-            ua: :user_agent,
-            uid: ->(request) { request.session[:uid] }
-          })
-
-Don't use config.log_tags.
-
-### To define where to send messages to, either:
-
-#### create config/fluent-logger.yml
-
-    development:
-      fluent_host:   '127.0.0.1'
-      fluent_port:   24224
-      tag:           'foo'
-      messages_type: 'string'
-      severity_key:  'level'     # default severity
-
-    test:
-      fluent_host:   '127.0.0.1'
-      fluent_port:   24224
-      tag:           'foo'
-      messages_type: 'string'
-      severity_key:  'level'     # default severity
-
-    production:
-      fluent_host:   '127.0.0.1'
-      fluent_port:   24224
-      tag:           'foo'
-      messages_type: 'string'
-      severity_key:  'level'     # default severity
-
-#### set an environment variable FLUENTD_URL
-
-    http://fluentd.example.com:42442/foo?messages_type=string&severity_key=level
-
-#### pass a settings object to InfluxdbLogger::Logger.new
-
-    config.logger = InfluxdbLogger::Logger.
-      new(settings: {
-            host: '127.0.0.1',
-            port: 24224,
-            tag: 'foo',
-            messages_type: 'string',
-            severity_key: 'level'
-          })
-
-### Setting
-
- * fluent_host: The host name of Fluentd.
- * fluent_port: The port number of Fluentd.
- * tag: The tag of the Fluentd event.
- * messages_type: The type of log messages. 'string' or 'array'.
-   If it is 'string', the log messages is a String.
-```
-2013-01-18T15:04:50+09:00 foo {"messages":"Started GET \"/\" for 127.0.0.1 at 2013-01-18 15:04:49 +0900\nProcessing by TopController#index as HTML\nCompleted 200 OK in 635ms (Views: 479.3ms | ActiveRecord: 39.6ms)"],"severity":"INFO"}
-```
-   If it is 'array', the log messages is an Array.
-```
-2013-01-18T15:04:50+09:00 foo {"messages":["Started GET \"/\" for 127.0.0.1 at 2013-01-18 15:04:49 +0900","Processing by TopController#index as HTML","Completed 200 OK in 635ms (Views: 479.3ms | ActiveRecord: 39.6ms)"],"severity":"INFO"}
-```
- * severity_key: The key of severity(DEBUG, INFO, WARN, ERROR).
-
-You can add any tags at run time.
-
-   logger[:foo] = "foo value"
-
-### Usage as a standalone logger
-
-Typical usage is as a replacement for the default Rails logger, in which case
-messages are collected and flushed automatically as part of the request
-lifecycle. If you wish to use it instead as a separate logger and log to it
-manually then it is necessary to initialize with the `flush_immediately` flag.
+#### Provide conf for influxdb
 
 ```ruby
-InfluxdbLogger::Logger.new(flush_immediately: true)
+    InfluxdbLogger::Logger.new(settings: {
+      host: 'influxdb',
+      database: 'paiyou',
+      series: series,
+      retry: 3,
+      username: 'user',
+      password: 'password',
+      time_precision: 'ms'
+    })
 ```
+
+#### Provide conf for influxdb, and log tags
+```ruby
+    InfluxdbLogger::Logger.new(log_tags: {
+      ip: :ip,
+      ua: :user_agent,
+      uid: ->(request) { request.session[:uid] }
+    }, settings: {
+      host: 'influxdb',
+      database: 'paiyou',
+      series: series,
+      retry: 3,
+      username: 'user',
+      password: 'password',
+      time_precision: 'ms'
+    })
+```
+
+
+#### Provide conf for influxdb, and log tags, batch size, interval
+
+```ruby
+    InfluxdbLogger::Logger.new(batch_size: 999, interval: 1000, log_tags: {
+      ip: :ip,
+      ua: :user_agent,
+      uid: ->(request) { request.session[:uid] }
+    }, settings: {
+      host: 'influxdb',
+      database: 'paiyou',
+      series: series,
+      retry: 3,
+      username: 'user',
+      password: 'password',
+      time_precision: 'ms'
+    })
+```
+
+The two arguments `batch_size` and `interval` mean that the log will push logs into `influxdb` only when count of messages is larger than `999` or 
+time has passed for at least `1000ms` since last push.
+Don't use config.log_tags.
 
 
 ## Contributing
