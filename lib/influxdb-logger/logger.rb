@@ -35,13 +35,8 @@ module InfluxdbLogger
         influxdb_config = if ENV["INFLUXDB_URL"]
                           self.parse_url(ENV["INFLUXDB_URL"])
                         end
-        settings = {
-          tag:  influxdb_config['tag'],
-          host: influxdb_config['host'],
-          port: influxdb_config['port'],
-          messages_type: influxdb_config['messages_type'],
-          severity_key: influxdb_config['severity_key'],
-        }
+        settings = influxdb_config.slice(:database, :host, :port, :message_type, :severity_key,
+                                         :username, :password, :series, :time_precision, :retry).symbolize_keys
       end
 
       settings[:batch_size] ||= batch_size
@@ -67,7 +62,7 @@ module InfluxdbLogger
         series: params['series'].try(:first),
         time_precision: params['time_precision'].try(:first),
         retry: params['retry'].try(:first).to_i
-      }.stringify_keys
+      }
     end
 
     def tagged(*tags)

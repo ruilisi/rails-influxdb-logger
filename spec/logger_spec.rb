@@ -189,16 +189,16 @@ describe InfluxdbLogger::Logger do
       it "settings are parsed properly" do
         settings = described_class.parse_url(influxdb_url)
         expect(settings).to eq({
-          "database"=>"rallets",
-          "host"=>"influxdb",
-          "port"=>8086,
-          "messages_type"=>"string",
-          "severity_key"=>"level",
-          "username" => "user",
-          "password" => "pass",
-          "series" => "Log",
-          "time_precision" => "ms",
-          "retry" => 3
+          database: "rallets",
+          host: "influxdb",
+          port: 8086,
+          messages_type: "string",
+          severity_key: "level",
+          username: "user",
+          password: "pass",
+          series: "Log",
+          time_precision: "ms",
+          retry: 3
         })
       end
     end
