@@ -179,16 +179,25 @@ describe InfluxdbLogger::Logger do
     end
   end
 
-  describe "use ENV['FLUENTD_URL']" do
-    let(:fluentd_url) { "http://fluentd.example.com:42442/hoge?messages_type=string&severity_key=level" }
+  describe "use ENV['INFLUXDB_URL']" do
+    let(:influxdb_url) { "http://influxdb:8086/rallets?messages_type=string&severity_key=level&username=user&password=pass&time_precision=ms&series=Log&retry=3" }
 
     describe ".parse_url" do
-      subject { described_class.parse_url(fluentd_url) }
-      it { expect(subject['tag']).to eq 'hoge' }
-      it { expect(subject['fluent_host']).to eq 'fluentd.example.com' }
-      it { expect(subject['fluent_port']).to eq 42442 }
-      it { expect(subject['messages_type']).to eq 'string' }
-      it { expect(subject['severity_key']).to eq 'level' }
+      it "settings are parsed properly" do
+        settings = described_class.parse_url(influxdb_url)
+        expect(settings).to eq({
+          "database"=>"rallets",
+          "host"=>"influxdb",
+          "port"=>8086,
+          "messages_type"=>"string",
+          "severity_key"=>"level",
+          "username" => "user",
+          "password" => "pass",
+          "series" => "Log",
+          "time_precision" => "ms",
+          "retry" => 3
+        })
+      end
     end
   end
 
