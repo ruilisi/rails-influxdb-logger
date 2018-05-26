@@ -37,8 +37,8 @@ module InfluxdbLogger
                         end
         settings = {
           tag:  influxdb_config['tag'],
-          host: influxdb_config['influxdb_host'],
-          port: influxdb_config['influxdb_port'],
+          host: influxdb_config['host'],
+          port: influxdb_config['port'],
           nanosecond_precision: influxdb_config['nanosecond_precision'],
           messages_type: influxdb_config['messages_type'],
           severity_key: influxdb_config['severity_key'],
@@ -57,14 +57,17 @@ module InfluxdbLogger
     def self.parse_url(influxdb_url)
       uri = URI.parse influxdb_url
       params = CGI.parse uri.query
-
       {
+        database: uri.path[1..-1],
         host: uri.host,
         port: uri.port,
-        tag: uri.path[1..-1],
-        nanosecond_precision: params['nanosecond_precision'].try(:first),
         messages_type: params['messages_type'].try(:first),
         severity_key: params['severity_key'].try(:first),
+        username: params['username'].try(:first),
+        password: params['password'].try(:first),
+        series: params['series'].try(:first),
+        time_precision: params['time_precision'].try(:first),
+        retry: params['retry'].try(:first).to_i
       }.stringify_keys
     end
 
