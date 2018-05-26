@@ -39,7 +39,6 @@ module InfluxdbLogger
           tag:  influxdb_config['tag'],
           host: influxdb_config['host'],
           port: influxdb_config['port'],
-          nanosecond_precision: influxdb_config['nanosecond_precision'],
           messages_type: influxdb_config['messages_type'],
           severity_key: influxdb_config['severity_key'],
         }
