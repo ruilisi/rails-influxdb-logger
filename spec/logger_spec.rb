@@ -16,6 +16,10 @@ describe InfluxdbLogger::Logger do
 
     class MyLogger
       attr_accessor :log
+      def initialize()
+        @log = []
+      end
+
       def post(tag, map)
       end
 
@@ -27,7 +31,6 @@ describe InfluxdbLogger::Logger do
       end
 
       def write_point(point)
-        @log ||= []
         @log << point
       end
 
@@ -201,11 +204,17 @@ describe InfluxdbLogger::Logger do
     end
   end
 
-  describe 'batch size' do
-    it 'works well with batch size' do
-      # logger = InfluxdbLogger::Logger.new(settings: settings, batch_size: 2))
-      # logger.info('Immediately!')
-      # expect(@my_logger.log).to eq(nil)
+  describe 'batch size', now: true do
+    it 'inner logger write_points after every two messages if batch_size is set to 2' do
+      logger = InfluxdbLogger::Logger.new(settings: settings, batch_size: 2)
+      logger.info('message 1')
+      expect(@my_logger.log.size).to eq 0
+      logger.info('message 2')
+      expect(@my_logger.log.size).to eq 2
+      logger.info('message 3')
+      expect(@my_logger.log.size).to eq 2
+      logger.info('message 4')
+      expect(@my_logger.log.size).to eq 4
     end
   end
 end
