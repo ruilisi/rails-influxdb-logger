@@ -7,6 +7,12 @@ class Time
   end
 end
 
+module InfluxdbLogger
+  module Logger
+    attr_accessor :settings
+  end
+end
+
 describe InfluxdbLogger::Logger do
   before do
     stub_const('Rails', Class.new) unless defined?(Rails)
@@ -182,25 +188,29 @@ describe InfluxdbLogger::Logger do
     end
   end
 
-  describe "use ENV['INFLUXDB_URL']" do
-    let(:influxdb_url) { "http://influxdb:8086/rallets?messages_type=string&severity_key=level&username=user&password=pass&time_precision=ms&series=Log&retry=3" }
+  describe "settings with ENV['INDUX_DB_URL']" do
+    let(:influxdb_url) { 'http://influxdb:8086/rallets?messages_type=string&severity_key=level&username=user&password=pass&time_precision=ms&series=Log&retry=3' }
 
-    describe ".parse_url" do
-      it "settings are parsed properly" do
-        settings = described_class.parse_url(influxdb_url)
-        expect(settings).to eq({
-          database: "rallets",
-          host: "influxdb",
-          port: 8086,
-          messages_type: "string",
-          severity_key: "level",
-          username: "user",
-          password: "pass",
-          series: "Log",
-          time_precision: "ms",
-          retry: 3
-        })
-      end
+      it "settings are properly set" do
+        stub_const("ENV", {'INFLUXDB_URL' => influxdb_url })
+        allow(InfluxdbLogger::InnerLogger).to receive(:new) do |settings|
+          expect(settings).to eq({
+            database: "rallets",
+            host: "influxdb",
+            port: 8086,
+            messages_type: "string",
+            severity_key: "level",
+            username: "user",
+            password: "pass",
+            series: "Log",
+            time_precision: "ms",
+            retry: 3,
+            batch_size: 1000,
+            interval: 1000
+          })
+          ActiveSupport::Logger.new(STDOUT)
+        end
+        InfluxdbLogger::Logger.new(settings: {})
     end
   end
 
