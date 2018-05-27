@@ -31,12 +31,9 @@ module InfluxdbLogger
           end
         end
       end
-      if (0 == settings.length)
-        influxdb_config = if ENV["INFLUXDB_URL"]
-                          self.parse_url(ENV["INFLUXDB_URL"])
-                        end
-        settings = influxdb_config.slice(:database, :host, :port, :message_type, :severity_key,
-                                         :username, :password, :series, :time_precision, :retry).symbolize_keys
+
+      if ENV["INFLUXDB_URL"]
+        settings = self.parse_url(ENV["INFLUXDB_URL"]).merge(settings)
       end
 
       settings[:batch_size] ||= batch_size
