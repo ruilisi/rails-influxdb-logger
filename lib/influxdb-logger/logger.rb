@@ -11,6 +11,11 @@ class Time
 end
 
 module InfluxdbLogger
+  def log_to_file(message) # for test
+    open("#{Rails.root}/log/my.log", 'w') { |f|
+      f.puts message.inspect
+    }
+  end
 
   module Logger
 
@@ -209,4 +214,3 @@ module InfluxdbLogger
     end
   end
 end
-
