@@ -12,7 +12,7 @@ end
 
 module InfluxdbLogger
   def log_to_file(message) # for test
-    open("#{Rails.root}/log/my.log", 'w') { |f|
+    open("#{Rails.root}/log/my.log", 'a') { |f|
       f.puts message.inspect
     }
   end
