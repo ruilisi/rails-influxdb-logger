@@ -1,6 +1,6 @@
 # influxdb-logger (Rails)
 
-Log to Influxdb in Rails
+**Logger** for **Influxdb** in **Rails**
 
 ## Supported versions
 
@@ -10,7 +10,7 @@ Log to Influxdb in Rails
 
 Add this line to your application's Gemfile:
 
-    gem 'influxdb-logger', '5.1.4'
+    gem 'influxdb-logger', '1.0.1'
 
 And then execute:
 
