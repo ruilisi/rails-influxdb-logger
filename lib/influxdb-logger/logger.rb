@@ -12,7 +12,7 @@ class Time
     when 'u'
       (self.to_r * 1000000).to_i
     when 'ms'
-      (self.to_r * 1000).to_i
+      self.to_ms
     when 's'
       self.to_i
     when 'm'
@@ -26,6 +26,10 @@ class Time
 
   def to_ns
     (self.to_r * 1000000000).to_i
+  end
+
+  def to_ms
+    (self.to_r * 1000).to_i
   end
 end
 
@@ -105,7 +109,7 @@ module InfluxdbLogger
       @series = options[:series]
       @retention = options[:retention]
       @global_tags = {}
-      @last_flush_time = Time.now.to_ns
+      @last_flush_time = Time.now.to_ms
       @value_filter = options[:value_filter] || {}
       @time_precision = options[:time_precision] || 'ns'
 
@@ -207,7 +211,7 @@ module InfluxdbLogger
       }
 
       @messages << message
-      flush if @messages.size >= @batch_size || (Time.now.to_ns - @last_flush_time) > @interval
+      flush if @messages.size >= @batch_size || (Time.now.to_ms - @last_flush_time) > @interval
     end
 
     def flush
@@ -219,7 +223,7 @@ module InfluxdbLogger
       end
       @severity = 0
       @messages.clear
-      @last_flush_time = Time.now.to_ns
+      @last_flush_time = Time.now.to_ms
       @tags = nil
     end
 
