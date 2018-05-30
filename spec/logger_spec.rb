@@ -40,7 +40,7 @@ describe InfluxdbLogger::Logger do
         @log << point
       end
 
-      def write_points(points)
+      def write_points(points, time_precision, rentention = nil)
         @log ||= []
         @log.concat(points)
       end
