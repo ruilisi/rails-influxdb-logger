@@ -113,13 +113,14 @@ module InfluxdbLogger
       @value_filter = options[:value_filter] || {}
       @time_precision = options[:time_precision] || 'ns'
 
-      @influxdb_logger = InfluxDB::Client.new(
+      @influxdb_logger = ::InfluxDB::Client.new(
         host: options[:host],
         database: options[:database],
         retry: options[:retry],
         username: options[:username],
         password: options[:password],
-        time_precision: @time_precision
+        time_precision: @time_precision,
+        discard_write_errors: true
       )
 
       @severity = 0
@@ -216,11 +217,7 @@ module InfluxdbLogger
 
     def flush
       return if @messages.empty?
-      if @retention
-        @influxdb_logger.write_points(@messages, @time_precision, @retention)
-      else
-        @influxdb_logger.write_points(@messages, @time_precision)
-      end
+      @influxdb_logger.write_points(@messages, @time_precision, @retention)
       @severity = 0
       @messages.clear
       @last_flush_time = Time.now.to_ms
