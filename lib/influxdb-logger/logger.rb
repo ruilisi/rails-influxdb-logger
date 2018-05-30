@@ -5,8 +5,27 @@ require 'cgi'
 
 
 class Time
-  def to_ms
-    (self.to_f * 1000.0).to_i
+  def to_precision(precision)
+    case precision
+    when 'ns'
+      self.to_ns
+    when 'u'
+      (self.to_r * 1000000).to_i
+    when 'ms'
+      (self.to_r * 1000).to_i
+    when 's'
+      self.to_i
+    when 'm'
+      self.to_i / 60
+    when 'h'
+      self.to_i / 3600
+    else
+      self.to_ns
+    end
+  end
+
+  def to_ns
+    (self.to_r * 1000000000).to_i
   end
 end
 
@@ -86,7 +105,7 @@ module InfluxdbLogger
       @series = options[:series]
       @retention = options[:retention]
       @global_tags = {}
-      @last_flush_time = Time.now.to_ms
+      @last_flush_time = Time.now.to_ns
       @value_filter = options[:value_filter] || {}
       @time_precision = options[:time_precision] || 'ns'
 
@@ -169,7 +188,7 @@ module InfluxdbLogger
 
       message = {
         series: @series,
-        timestamp: Time.now.to_ms,
+        timestamp: Time.now.to_precision(@time_precision),
         tags: tags,
         values: values.merge({
           severity: format_severity(@severity)
@@ -188,7 +207,7 @@ module InfluxdbLogger
       }
 
       @messages << message
-      flush if @messages.size >= @batch_size || (Time.now.to_ms - @last_flush_time) > @interval
+      flush if @messages.size >= @batch_size || (Time.now.to_ns - @last_flush_time) > @interval
     end
 
     def flush
@@ -200,7 +219,7 @@ module InfluxdbLogger
       end
       @severity = 0
       @messages.clear
-      @last_flush_time = Time.now.to_ms
+      @last_flush_time = Time.now.to_ns
       @tags = nil
     end
 
