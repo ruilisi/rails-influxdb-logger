@@ -45,7 +45,7 @@ module InfluxdbLogger
     # Severity label for logging. (max 5 char)
     SEV_LABEL = %w(DEBUG INFO WARN ERROR FATAL ANY)
 
-    def self.new(log_tags: {}, settings: {}, batch_size: 1000, interval: 1000)
+    def self.new(async: true, log_tags: {}, settings: {}, batch_size: 1000, interval: 1000)
       Rails.application.config.log_tags = log_tags.values
       if Rails.application.config.respond_to?(:action_cable)
         Rails.application.config.action_cable.log_tags = log_tags.values.map do |x|
@@ -66,6 +66,7 @@ module InfluxdbLogger
 
       settings[:batch_size] ||= batch_size
       settings[:interval] ||= interval
+      settings[:async] = async
 
       level = SEV_LABEL.index(Rails.application.config.log_level.to_s.upcase)
       logger = InfluxdbLogger::InnerLogger.new(settings, level, log_tags)
@@ -119,6 +120,7 @@ module InfluxdbLogger
         retry: options[:retry],
         username: options[:username],
         password: options[:password],
+        async: options[:async],
         time_precision: @time_precision,
         discard_write_errors: true
       )
