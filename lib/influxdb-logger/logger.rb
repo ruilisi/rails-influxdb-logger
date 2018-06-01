@@ -114,13 +114,8 @@ module InfluxdbLogger
       @value_filter = options[:value_filter] || {}
       @time_precision = options[:time_precision] || 'ns'
 
-      @influxdb_logger = ::InfluxDB::Client.new(
-        host: options[:host],
-        database: options[:database],
-        retry: options[:retry],
-        username: options[:username],
-        password: options[:password],
-        async: options[:async],
+      @influxdb_logger = InfluxDB::Client.new(
+        **options.slice(:host, :database, :retry, :username, :password, :async),
         time_precision: @time_precision,
         discard_write_errors: true
       )
