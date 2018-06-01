@@ -206,7 +206,8 @@ describe InfluxdbLogger::Logger do
             time_precision: "ms",
             retry: 3,
             batch_size: 1000,
-            interval: 1000
+            interval: 1000,
+            async: true
           })
           ActiveSupport::Logger.new(STDOUT)
         end

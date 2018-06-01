@@ -81,6 +81,12 @@ Supported parameters for `InfluxdbLogger::Logger.new`:
       })
   ```
 
+* `async`: Determines whether the logger write asynchronously to influxdb, default to `false`. Read code [here](https://github.com/influxdata/influxdb-ruby/blob/master/lib/influxdb/writer/async.rb#L48) to know how it works.
+  ```ruby
+      InfluxdbLogger::Logger.new(async: false, ...)
+  ```
+
+
 ## Contributing
 
 1. Fork it
