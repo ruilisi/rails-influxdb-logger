@@ -33,15 +33,14 @@ class Time
   end
 end
 
+def log_to_file(message) # for test
+  open("#{Rails.root}/log/my.log", 'a') { |f|
+    f.puts message.inspect
+  }
+end
+
 module InfluxdbLogger
-  def log_to_file(message) # for test
-    open("#{Rails.root}/log/my.log", 'a') { |f|
-      f.puts message.inspect
-    }
-  end
-
   module Logger
-
     # Severity label for logging. (max 5 char)
     SEV_LABEL = %w(DEBUG INFO WARN ERROR FATAL ANY)
 
