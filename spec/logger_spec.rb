@@ -51,7 +51,7 @@ describe InfluxdbLogger::Logger do
 
   let(:series) { 'Request' }
 
-  let(:log_tags) {
+  let(:tags) {
     {
       uuid: :uuid,
       foo: ->(request) { 'foo_value' }
@@ -71,7 +71,7 @@ describe InfluxdbLogger::Logger do
   }
 
   let(:logger) {
-    InfluxdbLogger::Logger.new(log_tags: log_tags, settings: settings)
+    InfluxdbLogger::Logger.new(tags: tags, settings: settings)
   }
 
   let(:request) {
@@ -81,9 +81,9 @@ describe InfluxdbLogger::Logger do
   describe 'logging' do
 
     describe 'basic' do
-      it 'info' do
+      it 'info', now: true do
         # see Rails::Rack::compute_tags
-        tags = log_tags.values.collect do |tag|
+        tag_values = tags.values.collect do |tag|
           case tag
           when Proc
             tag.call(request)
@@ -94,7 +94,7 @@ describe InfluxdbLogger::Logger do
           end
         end
         logger[:abc] = 'xyz'
-        logger.tagged(tags) { logger.info('hello') }
+        logger.tagged(tag_values) { logger.info('hello') }
         expect(@my_logger.log).to eq(
                                     [{
                                       series: series,
@@ -111,7 +111,7 @@ describe InfluxdbLogger::Logger do
                                       }
                                     }])
         @my_logger.clear
-        logger.tagged(tags) { logger.info('world'); logger.info('bye') }
+        logger.tagged(tag_values) { logger.info('world'); logger.info('bye') }
         expect(@my_logger.log).to eq(
           [{
             series: series,
@@ -215,7 +215,7 @@ describe InfluxdbLogger::Logger do
     end
   end
 
-  describe 'batch size', now: true do
+  describe 'batch size' do
     it 'inner logger write_points after every two messages if batch_size is set to 2' do
       logger = InfluxdbLogger::Logger.new(settings: settings, batch_size: 2)
       logger.info('message 1')
