@@ -44,10 +44,11 @@ module InfluxdbLogger
     # Severity label for logging. (max 5 char)
     SEV_LABEL = %w(DEBUG INFO WARN ERROR FATAL ANY)
 
-    def self.new(async: true, log_tags: {}, settings: {}, batch_size: 1000, interval: 1000)
-      Rails.application.config.log_tags = log_tags.values
+    def self.new(async: true, tags: {}, fields: {}, settings: {}, batch_size: 1000, interval: 1000)
+      all_tags = tags.values + fields.values
+      Rails.application.config.log_tags = all_tags
       if Rails.application.config.respond_to?(:action_cable)
-        Rails.application.config.action_cable.log_tags = log_tags.values.map do |x|
+        Rails.application.config.action_cable.log_tags = all_tags.map do |x|
           case
             when x.respond_to?(:call)
               x
@@ -68,7 +69,7 @@ module InfluxdbLogger
       settings[:async] = async
 
       level = SEV_LABEL.index(Rails.application.config.log_level.to_s.upcase)
-      logger = InfluxdbLogger::InnerLogger.new(settings, level, log_tags)
+      logger = InfluxdbLogger::InnerLogger.new(settings, level, tags, fields)
       logger = ActiveSupport::TaggedLogging.new(logger)
       logger.extend self
     end
@@ -99,7 +100,7 @@ module InfluxdbLogger
   end
 
   class InnerLogger < ActiveSupport::Logger
-    def initialize(options, level, log_tags)
+    def initialize(options, level, tags, fields)
       self.level = level
       @messages_type = (options[:messages_type] || :array).to_sym
       @tag = options[:tag]
@@ -121,7 +122,8 @@ module InfluxdbLogger
 
       @severity = 0
       @messages = []
-      @log_tags = log_tags
+      @all_tags = tags.merge(fields)
+      @fields = fields
       after_initialize if respond_to? :after_initialize
     end
 
@@ -182,7 +184,7 @@ module InfluxdbLogger
       tags = @global_tags.clone
 
       if @tags
-        @log_tags.keys.zip(@tags).each do |k, v|
+        @all_tags.keys.zip(@tags).each do |k, v|
           tags[k] = v
         end
       end
@@ -190,8 +192,8 @@ module InfluxdbLogger
       message = {
         series: @series,
         timestamp: Time.now.to_precision(@time_precision),
-        tags: tags,
-        values: values.merge({
+        tags: tags.except(@fields.keys),
+        values: values.merge(tags.slice(@fields.keys)).merge({
           severity: format_severity(@severity)
         }).transform_values {|value|
           case value
