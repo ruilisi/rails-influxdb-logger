@@ -188,12 +188,11 @@ module InfluxdbLogger
           tags[k] = v
         end
       end
-
       message = {
         series: @series,
         timestamp: Time.now.to_precision(@time_precision),
-        tags: tags.except(@fields.keys),
-        values: values.merge(tags.slice(@fields.keys)).merge({
+        tags: tags.except(*@fields.keys),
+        values: values.merge(tags.slice(*@fields.keys)).merge({
           severity: format_severity(@severity)
         }).transform_values {|value|
           case value
