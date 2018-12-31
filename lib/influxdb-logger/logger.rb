@@ -115,7 +115,7 @@ module InfluxdbLogger
       @time_precision = options[:time_precision] || 'ns'
 
       @influxdb_logger = InfluxDB::Client.new(
-        **options.slice(:host, :database, :retry, :username, :password, :async),
+        **options.slice(:host, :port, :database, :retry, :username, :password, :async),
         time_precision: @time_precision,
         discard_write_errors: true
       )
