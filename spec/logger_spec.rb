@@ -51,11 +51,11 @@ describe InfluxdbLogger::Logger do
 
   let(:series) { 'Request' }
 
-  let(:tags) {
+  let(:influxdb_tags) {
     [:uuid, :foo]
   }
 
-  let(:fields) {
+  let(:tags) {
     {
       uuid: :uuid,
       foo: ->(request) { 'foo_value' }
@@ -75,7 +75,7 @@ describe InfluxdbLogger::Logger do
   }
 
   let(:logger) {
-    InfluxdbLogger::Logger.new(tags: tags, settings: settings)
+    InfluxdbLogger::Logger.new(influxdb_tags: influxdb_tags, tags: tags, settings: settings)
   }
 
   let(:request) {
@@ -87,7 +87,7 @@ describe InfluxdbLogger::Logger do
     describe 'basic' do
       it 'info', now: true do
         # see Rails::Rack::compute_tags
-        tag_values = fields.values.collect do |tag|
+        tag_values = tags.values.collect do |tag|
           case tag
           when Proc
             tag.call(request)

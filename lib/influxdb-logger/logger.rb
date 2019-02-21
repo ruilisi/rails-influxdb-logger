@@ -44,8 +44,8 @@ module InfluxdbLogger
     # Severity label for logging. (max 5 char)
     SEV_LABEL = %w(DEBUG INFO WARN ERROR FATAL ANY)
 
-    def self.new(async: true, tags: [], fields: {}, settings: {}, batch_size: 1000, interval: 1000)
-      log_tags = fields.values
+    def self.new(async: true, influxdb_tags: [], tags: {}, settings: {}, batch_size: 1000, interval: 1000)
+      log_tags = tags.values
       Rails.application.config.log_tags = log_tags
       if Rails.application.config.respond_to?(:action_cable)
         Rails.application.config.action_cable.log_tags = log_tags.map do |x|
@@ -69,7 +69,7 @@ module InfluxdbLogger
       settings[:async] = async
 
       level = SEV_LABEL.index(Rails.application.config.log_level.to_s.upcase)
-      inner_logger = InfluxdbLogger::InnerLogger.new(settings, level, tags, fields)
+      inner_logger = InfluxdbLogger::InnerLogger.new(settings, level, tags, influxdb_tags)
       logger = ActiveSupport::TaggedLogging.new(inner_logger)
       logger.extend self
     end
@@ -100,7 +100,7 @@ module InfluxdbLogger
   end
 
   class InnerLogger < ActiveSupport::Logger
-    def initialize(options, level, influxdb_tags, fields)
+    def initialize(options, level, initialized_tags, influxdb_tags)
       self.level = level
       @messages_type = (options[:messages_type] || :array).to_sym
       @tag = options[:tag]
@@ -123,8 +123,7 @@ module InfluxdbLogger
       @influxdb_tags = influxdb_tags
       @severity = 0
       @messages = []
-      @tag_keys = influxdb_tags
-      @fields = fields
+      @initialized_tags = initialized_tags
       after_initialize if respond_to? :after_initialize
     end
 
@@ -183,7 +182,7 @@ module InfluxdbLogger
         end
 
       if @tags
-        @tag_keys.zip(@tags).each do |k, v|
+        @initialized_tags.keys.zip(@tags).each do |k, v|
           values[k] = v
         end
       end
