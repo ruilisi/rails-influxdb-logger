@@ -44,11 +44,11 @@ module InfluxdbLogger
     # Severity label for logging. (max 5 char)
     SEV_LABEL = %w(DEBUG INFO WARN ERROR FATAL ANY)
 
-    def self.new(async: true, tags: {}, fields: {}, settings: {}, batch_size: 1000, interval: 1000)
-      all_tags = tags.values + fields.values
-      Rails.application.config.log_tags = all_tags
+    def self.new(async: true, tags: [], fields: {}, settings: {}, batch_size: 1000, interval: 1000)
+      log_tags = fields.values
+      Rails.application.config.log_tags = log_tags
       if Rails.application.config.respond_to?(:action_cable)
-        Rails.application.config.action_cable.log_tags = all_tags.map do |x|
+        Rails.application.config.action_cable.log_tags = log_tags.map do |x|
           case
             when x.respond_to?(:call)
               x
@@ -69,8 +69,8 @@ module InfluxdbLogger
       settings[:async] = async
 
       level = SEV_LABEL.index(Rails.application.config.log_level.to_s.upcase)
-      logger = InfluxdbLogger::InnerLogger.new(settings, level, tags, fields)
-      logger = ActiveSupport::TaggedLogging.new(logger)
+      inner_logger = InfluxdbLogger::InnerLogger.new(settings, level, tags, fields)
+      logger = ActiveSupport::TaggedLogging.new(inner_logger)
       logger.extend self
     end
 
@@ -100,7 +100,7 @@ module InfluxdbLogger
   end
 
   class InnerLogger < ActiveSupport::Logger
-    def initialize(options, level, tags, fields)
+    def initialize(options, level, influxdb_tags, fields)
       self.level = level
       @messages_type = (options[:messages_type] || :array).to_sym
       @tag = options[:tag]
@@ -120,9 +120,10 @@ module InfluxdbLogger
         discard_write_errors: true
       )
 
+      @influxdb_tags = influxdb_tags
       @severity = 0
       @messages = []
-      @all_tags = tags.merge(fields)
+      @tag_keys = influxdb_tags
       @fields = fields
       after_initialize if respond_to? :after_initialize
     end
@@ -181,18 +182,16 @@ module InfluxdbLogger
             }
         end
 
-      tags = @global_tags.clone
-
       if @tags
-        @all_tags.keys.zip(@tags).each do |k, v|
-          tags[k] = v
+        @tag_keys.zip(@tags).each do |k, v|
+          values[k] = v
         end
       end
       message = {
         series: @series,
         timestamp: Time.now.to_precision(@time_precision),
-        tags: tags.except(*@fields.keys),
-        values: values.merge(tags.slice(*@fields.keys)).merge({
+        tags: values.slice(*@influxdb_tags).merge(@global_tags),
+        values: values.except(*@influxdb_tags).merge({
           severity: format_severity(@severity)
         }).transform_values {|value|
           case value
