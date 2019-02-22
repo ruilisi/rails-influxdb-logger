@@ -10,7 +10,7 @@
 
 Add this line to your application's Gemfile:
 
-    gem 'influxdb-logger', '1.0.1'
+    gem 'influxdb-logger', '2.0.0'
 
 And then execute:
 
@@ -20,42 +20,56 @@ Or install it yourself as:
 
     $ gem install influxdb-logger
 
-## Usage
+## Basic Usage
 
 In `config/environments/production.rb`(`test.rb`, `development.rb`)
 
 ```ruby
-config.logger = InfluxdbLogger::Logger.new(log_tags: {}, ...)
+config.logger = InfluxdbLogger::Logger.new(influxdb_tags: ... tags: ... settings: ... batch_size: ..., interval: ...,  async: ...)
 
 ```
 
-Supported parameters for `InfluxdbLogger::Logger.new`:
+By default, influxdb-logger will log
+`duration, db, format, location, message, message_type, method, params, path, severity, status, view` as [fields](https://docs.influxdata.com/influxdb/v1.7/concepts/key_concepts/#field-key) into specified
+[series](https://docs.influxdata.com/influxdb/v1.7/concepts/key_concepts/#series).
 
-* `log_tags`: tags which you want the created logger to pass into influxdb, for example, 
-  you could log **ip**, **user agent**, **device_type**(through requested parameters) and **version** with the following setup:
+Which means, your `influxdb-logger` is good to go with configuration only about how to talk to influxdb: 
+```ruby
+config.logger = InfluxdbLogger::Logger.new(settings: {
+  database: ENV['INFLUXDB_DB_NAME'],
+  series: ENV['INFLUXDB_SERIES'],
+  username: ENV['INFLUXDB_USER'],
+  password: ENV['INFLUXDB_USER_PASSWORD']
+})
+```
 
+## Advanced Usage
+
+* `influxdb_tags`[Array]: This argument specifies [tag-set](https://docs.influxdata.com/influxdb/v1.7/concepts/key_concepts/#tag-set) of series.
+If we need to constantly checkout influxdb logs about specific `controller` or `action`, the best way is to tag both fields to speed up any query on them utilizing `influxdb_tags`:
   ```ruby
-    config.logger = InfluxdbLogger::Logger.new(log_tags: {
-      ip: :ip,
-      ua: :user_agent,
-      device_type: -> request { request.params[:DEVICE_TYPE] },
-      version: -> request { request.params[:VERSION] },
-      session_id: -> request { request.params[:session_id] }
-    }, settings: ...})
-
+  config.logger = InfluxdbLogger::Logger.new(infludb_tags: [:controller, :action], settings: ...)
   ```
 
-* `settings`: which defines how the logger would connect to influxdb database. More detail about it could found in [influxdb-ruby](https://github.com/influxdata/influxdb-ruby).
-```ruby
-      InfluxdbLogger::Logger.new(settings: {
-        host: 'influxdb',
-        database: 'paiyou',
-        series: series,
-        retry: 3,
-        username: 'user',
-        password: 'password',
-        time_precision: 'ms'
-      })
+* `tags`[Hash]: If extra fields are required to be sent to influxdb, `tags` could be utilized, e.g., ip info of agents:
+  ```ruby
+  config.logger = InfluxdbLogger::Logger.new(tags: {
+    remote_ip: -> request { request.remote_ip }
+  },  settings: ...)
+  ```
+  Passed `tags` can be a `Hash` consisting values of any basic ruby type or a `lambda`. 
+
+* `settings`: Which defines how our `influxdb-logger` connects to influxdb database. Detailed doc about it is here: [influxdb-ruby](https://github.com/influxdata/influxdb-ruby).
+  ```ruby
+  InfluxdbLogger::Logger.new(settings: {
+    host: 'influxdb',
+    retry: 3,
+    time_precision: 'ms',
+    database: ENV['INFLUXDB_DB_NAME'],
+    series: ENV['INFLUXDB_SERIES'],
+    username: ENV['INFLUXDB_USER'],
+    password: ENV['INFLUXDB_USER_PASSWORD']
+  })
   ```
 
 * `batch_size`, `interval`: Since logging is a high frequncy job for any application with large user base in production environment. These two parameters
@@ -64,28 +78,17 @@ Supported parameters for `InfluxdbLogger::Logger.new`:
    For example, you can tell the logger to log when size of logging actions hits `1000` or that the last logging action is `1000`ms later than the first one in the queue by:
 
   ```ruby
-      InfluxdbLogger::Logger.new(batch_size: 1000, interval: 1000, log_tags: {
-        ip: :ip,
-        ua: :user_agent,
-        device_type: -> request { request.params[:DEVICE_TYPE] },
-        version: -> request { request.params[:VERSION] },
-        session_id: -> request { request.params[:session_id] }
-      }, settings: {
-        host: 'influxdb',
-        database: 'paiyou',
-        series: series,
-        retry: 3,
-        username: 'user',
-        password: 'password',
-        time_precision: 'ms'
-      })
+  InfluxdbLogger::Logger.new(batch_size: 1000, interval: 1000, settings: ...)
   ```
 
 * `async`: Determines whether the logger write asynchronously to influxdb, default to `false`. Read code [here](https://github.com/influxdata/influxdb-ruby/blob/master/lib/influxdb/writer/async.rb#L48) to know how it works.
   ```ruby
-      InfluxdbLogger::Logger.new(async: false, ...)
+  InfluxdbLogger::Logger.new(async: false, settings: ...)
   ```
 
+## License
+
+MIT
 
 ## Contributing
 

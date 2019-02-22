@@ -44,7 +44,7 @@ module InfluxdbLogger
     # Severity label for logging. (max 5 char)
     SEV_LABEL = %w(DEBUG INFO WARN ERROR FATAL ANY)
 
-    def self.new(async: true, influxdb_tags: [], tags: {}, settings: {}, batch_size: 1000, interval: 1000)
+    def self.new(influxdb_tags: [], tags: {}, settings: {}, batch_size: 1000, interval: 1000, async: true)
       log_tags = tags.values
       Rails.application.config.log_tags = log_tags
       if Rails.application.config.respond_to?(:action_cable)
