@@ -19,7 +19,7 @@ Gem::Specification.new do |gem|
   gem.require_paths = ["lib"]
 
   gem.add_development_dependency "rspec", '~> 3.5.0'
-  gem.add_runtime_dependency "railties", ">= 4", "< 5.3"
+  gem.add_runtime_dependency "railties", ">= 4.2.0", "< 6.0"
   gem.add_runtime_dependency "activesupport", ">= 4", "< 5.3"
   gem.add_runtime_dependency "influxdb", "~> 0.5.3"
 end
