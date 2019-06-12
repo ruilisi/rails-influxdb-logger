@@ -34,7 +34,7 @@ class Time
 end
 
 def log_to_file(message) # for test
-  open("#{Rails.root}/log/my.log", 'a') { |f|
+  open("#{Rails.root}/log/rails-influxdb-logger-test.log", 'a') { |f|
     f.puts message.inspect
   }
 end
